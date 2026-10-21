@@ -13,8 +13,8 @@
 
 ## 📁 Padrão de Caminhos e Organização
 - Pasta base da turma: `projetos`
-- Projeto Mobile: `projetos/ionic_projeto`
-- Projeto API: `projetos/mobile_api`
+- Projeto Mobile: `projetos/ionic_projeto` (ou `projeto_mobile`)
+- Projeto API: `projetos/mobile_api` (ou `agenda-mobile-api`)
 
 > [!IMPORTANT]
 > - Manter os 3 terminais ativos durante o desenvolvimento:
@@ -47,7 +47,8 @@ app.use(express.json());
 // Array mutável em memória simulando o banco de dados
 let produtos = [
   { id: 1, nome: 'Smartphone Android', preco: 1500.00, categoria: 'Eletrônicos' },
-  { id: 2, nome: 'Fone de Ouvido Bluetooth', preco: 250.00, categoria: 'Acessórios' }
+  { id: 2, nome: 'Fone de Ouvido Bluetooth', preco: 250.00, categoria: 'Acessórios' },
+  { id: 3, nome: 'Carregador Rápido USB-C', preco: 120.00, categoria: 'Acessórios' }
 ];
 
 app.get('/health', (_req, res) => res.status(200).json({ status: 'ok' }));
@@ -67,6 +68,10 @@ app.post('/produtos', (req, res) => {
 // Rota DELETE /produtos/:id (Remover)
 app.delete('/produtos/:id', (req, res) => {
   const id = Number(req.params.id);
+  const produtoExiste = produtos.some(p => p.id === id);
+  if (!produtoExiste) {
+    return res.status(404).json({ erro: 'Produto não encontrado!' });
+  }
   produtos = produtos.filter(p => p.id !== id);
   res.status(200).json({ mensagem: 'Produto removido com sucesso!' });
 });

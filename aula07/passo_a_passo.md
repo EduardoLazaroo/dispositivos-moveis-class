@@ -51,7 +51,7 @@ ng g c pages/perfil --type=page --standalone
 > 💡 **Entendendo a estratégia:**  
 > A página Standalone `tabs` atuará como um container (moldura) que segura a barra inferior de botões. As páginas filhas `inicio` e `perfil` serão carregadas dinamicamente no centro da tela conforme a aba selecionada.
 
-4. **Editar o arquivo de rotas (`src/app/app.routes.ts`) registrando as rotas filhas (`children`):**
+4. **Atualizar o arquivo de rotas (`src/app/app.routes.ts`) registrando as rotas filhas (`children`) sem remover as rotas de `login`, `cadastro` e `detalhes/:id` criadas nas aulas anteriores:**
 
 ```typescript
 import { Routes } from '@angular/router';
@@ -65,6 +65,14 @@ export const routes: Routes = [
   {
     path: 'login',
     loadComponent: () => import('./pages/login/login.page').then( m => m.LoginPage)
+  },
+  {
+    path: 'cadastro',
+    loadComponent: () => import('./pages/cadastro/cadastro.page').then( m => m.CadastroPage)
+  },
+  {
+    path: 'detalhes/:id',
+    loadComponent: () => import('./pages/detalhes/detalhes.page').then( m => m.DetalhesPage)
   },
   {
     path: 'tabs',
@@ -88,6 +96,8 @@ export const routes: Routes = [
   }
 ];
 ```
+> [!IMPORTANT]
+> Este é o arquivo acumulado até esta aula. Ao adicionar novas rotas nas próximas aulas, inclua novos objetos no mesmo array `routes`; não substitua as rotas já existentes.
 > 📌 **Como funcionam `children` routes?**  
 > As rotas filhas herdam o contexto do componente pai (`tabs.page`). Ao acessar `/tabs/inicio`, o Angular renderiza o `TabsPage` e injeta o `InicioPage` no canal de saída do container.
 
@@ -165,41 +175,90 @@ export class TabsPage implements OnInit {
 
 ### Bloco 3 - Criação do Menu Lateral (ion-menu)
 
-1. **Editar o arquivo principal do aplicativo (`src/app/app.component.html`) para integrar o `<ion-menu>`:**
+1. **Atualizar o arquivo TypeScript principal (`src/app/app.component.ts`) para importar os componentes e a diretiva usados pelo menu:**
 
-```html
-<!-- Menu Lateral Deslizante -->
-<ion-menu contentId="main-content">
-  <ion-header>
-    <ion-toolbar color="primary">
-      <ion-title>Menu Principal</ion-title>
-    </ion-toolbar>
-  </ion-header>
+```typescript
+import { Component } from '@angular/core';
+import { RouterLink } from '@angular/router';
+import {
+  IonApp,
+  IonContent,
+  IonHeader,
+  IonItem,
+  IonLabel,
+  IonList,
+  IonMenu,
+  IonRouterOutlet,
+  IonTitle,
+  IonToolbar
+} from '@ionic/angular/standalone';
 
-  <ion-content class="ion-padding">
-    <ion-list lines="none">
-      <ion-item button routerLink="/tabs/inicio">
-        <ion-label>Início</ion-label>
-      </ion-item>
-      
-      <ion-item button routerLink="/tabs/perfil">
-        <ion-label>Meu Perfil</ion-label>
-      </ion-item>
-      
-      <ion-item button routerLink="/login">
-        <ion-label color="danger">Sair do App</ion-label>
-      </ion-item>
-    </ion-list>
-  </ion-content>
-</ion-menu>
-
-<!-- Área de Conteúdo Principal vinculada ao id main-content -->
-<div class="ion-page" id="main-content">
-  <ion-router-outlet></ion-router-outlet>
-</div>
+@Component({
+  selector: 'app-root',
+  templateUrl: 'app.component.html',
+  standalone: true,
+  imports: [
+    RouterLink,
+    IonApp,
+    IonContent,
+    IonHeader,
+    IonItem,
+    IonLabel,
+    IonList,
+    IonMenu,
+    IonRouterOutlet,
+    IonTitle,
+    IonToolbar
+  ]
+})
+export class AppComponent {}
 ```
 
-2. **Editar o HTML da página de início (`src/app/pages/inicio/inicio.page.html`) para incluir o botão de disparar o menu (`<ion-menu-button>`):**
+2. **Atualizar o arquivo principal do aplicativo (`src/app/app.component.html`) para integrar o `<ion-menu>` sem remover o `<ion-router-outlet>`:**
+
+```html
+<ion-app>
+  <!-- Menu Lateral Deslizante -->
+  <ion-menu contentId="main-content">
+    <ion-header>
+      <ion-toolbar color="primary">
+        <ion-title>Menu Principal</ion-title>
+      </ion-toolbar>
+    </ion-header>
+
+    <ion-content class="ion-padding">
+      <ion-list lines="none">
+        <ion-item button routerLink="/tabs/inicio">
+          <ion-label>Início</ion-label>
+        </ion-item>
+
+        <ion-item button routerLink="/tabs/perfil">
+          <ion-label>Meu Perfil</ion-label>
+        </ion-item>
+
+        <ion-item button routerLink="/login">
+          <ion-label color="danger">Sair do App</ion-label>
+        </ion-item>
+      </ion-list>
+    </ion-content>
+  </ion-menu>
+
+  <!-- Área de Conteúdo Principal vinculada ao id main-content -->
+  <div class="ion-page" id="main-content">
+    <ion-router-outlet></ion-router-outlet>
+  </div>
+</ion-app>
+```
+
+3. **Editar o TypeScript da página de início (`src/app/pages/inicio/inicio.page.ts`) e acrescentar `IonButtons` e `IonMenuButton` tanto no import quanto no array `imports` do decorator:**
+
+```typescript
+import { IonButtons, IonMenuButton } from '@ionic/angular/standalone';
+
+// No array imports: [ ..., IonButtons, IonMenuButton ]
+```
+
+4. **Editar o HTML da página de início (`src/app/pages/inicio/inicio.page.html`) para incluir o botão de disparar o menu (`<ion-menu-button>`):**
 
 ```html
 <ion-header [translucent]="true">

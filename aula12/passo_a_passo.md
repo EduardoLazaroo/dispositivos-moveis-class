@@ -13,8 +13,8 @@
 
 ## 📁 Padrão de Caminhos e Organização
 - Pasta base da turma: `projetos`
-- Projeto Mobile: `projetos/ionic_projeto`
-- Projeto API: `projetos/mobile_api`
+- Projeto Mobile: `projetos/ionic_projeto` (ou `projeto_mobile`)
+- Projeto API: `projetos/mobile_api` (ou `agenda-mobile-api`)
 
 > [!IMPORTANT]
 > - Manter os 3 terminais ativos durante o desenvolvimento:
@@ -40,8 +40,8 @@ npm run start
 ```typescript
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, from, of } from 'rxjs';
-import { tap, catchError } from 'rxjs/operators';
+import { Observable, from } from 'rxjs';
+import { tap, catchError, map } from 'rxjs/operators';
 import { StorageService } from './storage.service';
 
 export interface Produto {
@@ -63,25 +63,38 @@ export class ProdutoService {
     private storage: StorageService
   ) { }
 
+  listarProdutos(): Observable<Produto[]> {
+    return this.http.get<Produto[]>(this.apiUrl);
+  }
+
+  criarProduto(produto: Partial<Produto>): Observable<Produto> {
+    return this.http.post<Produto>(this.apiUrl, produto);
+  }
+
+  excluirProduto(id: number): Observable<any> {
+    return this.http.delete(`${this.apiUrl}/${id}`);
+  }
+
   // Busca dados na API. Se obtiver sucesso, salva no cache local.
   // Caso ocorra falha de rede (catchError), restaura os dados do storage local!
   listarComCache(): Observable<Produto[]> {
     return this.http.get<Produto[]>(this.apiUrl).pipe(
-      tap(async (produtos) => {
+      tap((produtos) => {
         // Salva uma cópia dos produtos atualizados no disco do dispositivo
-        await this.storage.salvar(this.CACHE_KEY, produtos);
+        void this.storage.salvar(this.CACHE_KEY, produtos);
       }),
-      catchError(async () => {
+      catchError(() => {
         console.warn('Rede indisponível! Recuperando dados do cache local...');
-        const dadosLocais = await this.storage.obter<Produto[]>(this.CACHE_KEY);
-        return dadosLocais || [];
-      }) as any
+        return from(this.storage.obter<Produto[]>(this.CACHE_KEY)).pipe(
+          map((dadosLocais) => dadosLocais || [])
+        );
+      })
     );
   }
 }
 ```
 > 📌 **Entendendo os Operadores RxJS (`tap` e `catchError`):**
-> - **`tap`**: Executa um efeito colateral sem alterar a resposta do Observable. Aqui usarmos para salvar a cópia local.
+> - **`tap`**: Executa um efeito colateral sem alterar a resposta do Observable. Aqui usamos para salvar a cópia local.
 > - **`catchError`**: Intercepta falhas HTTP (ex: servidor offline). Em vez de travar a tela, ele intercepta a exceção e retorna a lista de cache previamente salva.
 
 3. **Validar:** Salve o arquivo e verifique que o código compila sem erros no terminal.
@@ -119,7 +132,7 @@ async limparPendencias(): Promise<void> {
 
 ### Bloco 3 - Atualização da Interface para Indicar Modo Cache/Offline
 
-1. **Editar a página de produtos (`src/app/pages/produtos/produtos.page.ts`) para chamar o método reativo de cache:**
+1. **Editar a página de produtos (`src/app/pages/produtos/produtos.page.ts`) integrando o método `listarComCache()` e mantendo suporte ao Refresher e Exclusão:**
 
 ```typescript
 import { Component, OnInit } from '@angular/core';
@@ -133,10 +146,12 @@ import {
   IonItem, 
   IonLabel, 
   IonBadge, 
-  IonButton 
+  IonButton, 
+  IonRefresher, 
+  IonRefresherContent 
 } from '@ionic/angular/standalone';
+import { ToastController, AlertController } from '@ionic/angular/standalone';
 import { ProdutoService, Produto } from '../../services/produto.service';
-import { ToastController } from '@ionic/angular/standalone';
 
 @Component({
   selector: 'app-produtos',
@@ -153,7 +168,9 @@ import { ToastController } from '@ionic/angular/standalone';
     IonItem, 
     IonLabel, 
     IonBadge, 
-    IonButton
+    IonButton, 
+    IonRefresher, 
+    IonRefresherContent
   ]
 })
 export class ProdutosPage implements OnInit {
@@ -161,16 +178,62 @@ export class ProdutosPage implements OnInit {
 
   constructor(
     private produtoService: ProdutoService,
-    private toastCtrl: ToastController
+    private toastCtrl: ToastController,
+    private alertCtrl: AlertController
   ) { }
 
   ngOnInit() {
-    this.carregar();
+    this.carregarProdutos();
   }
 
-  carregar() {
-    this.produtoService.listarComCache().subscribe(dados => {
-      this.produtos = dados;
+  // Carrega a lista com resiliência de cache e encerra o refresher se houver
+  carregarProdutos(event?: any) {
+    this.produtoService.listarComCache().subscribe({
+      next: (dados) => {
+        this.produtos = dados;
+        if (event) event.target.complete();
+      },
+      error: async () => {
+        if (event) event.target.complete();
+        const toast = await this.toastCtrl.create({
+          message: 'Modo offline: exibindo produtos em cache.',
+          duration: 3000,
+          color: 'warning'
+        });
+        toast.present();
+      }
+    });
+  }
+
+  // Modal de confirmação de exclusão
+  async confirmarExclusao(id: number) {
+    const alert = await this.alertCtrl.create({
+      header: 'Confirmar Exclusão',
+      message: 'Deseja realmente remover este produto?',
+      buttons: [
+        { text: 'Cancelar', role: 'cancel' },
+        {
+          text: 'Excluir',
+          role: 'destructive',
+          handler: () => this.remover(id)
+        }
+      ]
+    });
+    await alert.present();
+  }
+
+  // Exclusão de produto
+  remover(id: number) {
+    this.produtoService.excluirProduto(id).subscribe({
+      next: async () => {
+        const toast = await this.toastCtrl.create({ 
+          message: 'Produto excluído com sucesso!', 
+          duration: 2000, 
+          color: 'success' 
+        });
+        toast.present();
+        this.carregarProdutos();
+      }
     });
   }
 }

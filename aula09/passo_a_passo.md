@@ -13,8 +13,8 @@
 
 ## 📁 Padrão de Caminhos e Organização
 - Pasta base da turma: `projetos`
-- Projeto Mobile: `projetos/ionic_projeto`
-- Projeto API: `projetos/mobile_api`
+- Projeto Mobile: `projetos/ionic_projeto` (ou `projeto_mobile`)
+- Projeto API: `projetos/mobile_api` (ou `agenda-mobile-api`)
 
 > [!IMPORTANT]
 > - Manter obrigatoriamente os 3 terminais abertos:

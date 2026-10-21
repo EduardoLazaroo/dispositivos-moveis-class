@@ -18,7 +18,7 @@
 
 > [!IMPORTANT]
 > - Nesta primeira aula o foco e o alinhamento de conceitos, analise de arquitetura mobile e compreensao das ferramentas.
-> - Os ambientes de execucao e projetos praticos serao construidos do zero a partir da Aula 02.
+> - A pasta `projetos` e o arquivo de anotacoes sao somente organizacao preliminar; os projetos mobile e API serao construidos do zero a partir da Aula 02.
 
 ## ⏱️ Roteiro Completo de Atividades (4 Horas)
 

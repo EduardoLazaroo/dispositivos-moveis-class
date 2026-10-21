@@ -13,8 +13,8 @@
 
 ## 📁 Padrão de Caminhos e Organização
 - Pasta base da turma: `projetos`
-- Projeto Mobile: `projetos/ionic_projeto`
-- Projeto API: `projetos/mobile_api`
+- Projeto Mobile: `projetos/ionic_projeto` (ou `projeto_mobile`)
+- Projeto API: `projetos/mobile_api` (ou `agenda-mobile-api`)
 
 > [!IMPORTANT]
 > - Manter os 3 terminais ativos durante o desenvolvimento:
@@ -61,7 +61,7 @@ cd projetos/ionic_projeto
 ng g s services/storage
 ```
 
-2. **Editar o arquivo `src/app.services/storage.service.ts` implementando métodos genéricos assíncronos (`async/await`):**
+2. **Editar o arquivo `src/app/services/storage.service.ts` implementando métodos genéricos assíncronos (`async/await`):**
 
 ```typescript
 import { Injectable } from '@angular/core';
@@ -126,6 +126,7 @@ ng g c pages/configuracoes --type=page --standalone
   loadComponent: () => import('./pages/configuracoes/configuracoes.page').then(m => m.ConfiguracoesPage)
 }
 ```
+> 📌 Acrescente este objeto ao array `routes` existente, mantendo as rotas de `login`, `cadastro`, `detalhes`, `tabs` e `produtos` configuradas nas aulas anteriores.
 
 3. **Editar o arquivo TypeScript (`src/app/pages/configuracoes/configuracoes.page.ts`):**
 

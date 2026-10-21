@@ -13,8 +13,8 @@
 
 ## 📁 Padrão de Caminhos e Organização
 - Pasta base da turma: `projetos`
-- Projeto Mobile: `projetos/ionic_projeto`
-- Projeto API: `projetos/mobile_api`
+- Projeto Mobile: `projetos/ionic_projeto` (ou `projeto_mobile`)
+- Projeto API: `projetos/mobile_api` (ou `agenda-mobile-api`)
 
 > [!IMPORTANT]
 > - Manter os 3 terminais ativos durante o desenvolvimento:
@@ -34,21 +34,13 @@
 cd projetos/mobile_api
 ```
 
-2. **Editar o arquivo `src/app.js` adicionando a rota POST `/login` com geração de Token JWT:**
+2. **Atualizar o arquivo `src/app.js` sem remover os endpoints de produtos criados nas Aulas 09 e 10. Adicione a importação, a chave secreta e a rota abaixo ao arquivo existente:**
 
 ```javascript
-const express = require('express');
-const cors = require('cors');
 const jwt = require('jsonwebtoken'); // Pacote para geração e validação de JWT
-
-const app = express();
-app.use(cors());
-app.use(express.json());
 
 // Segredo do servidor para assinar o token
 const CHAVE_SECRETA = 'minha_chave_secreta_faculdade_2026';
-
-app.get('/health', (_req, res) => res.status(200).json({ status: 'ok' }));
 
 // Rota de Autenticação (Login)
 app.post('/login', (req, res) => {
@@ -73,9 +65,9 @@ app.post('/login', (req, res) => {
   // Resposta para credenciais inválidas (Status 401 Unauthorized)
   return res.status(401).json({ erro: 'Credenciais inválidas!' });
 });
-
-module.exports = app;
 ```
+> [!IMPORTANT]
+> Mantenha no mesmo arquivo as rotas `/health`, `GET /produtos`, `POST /produtos` e `DELETE /produtos/:id`. Esta aula acrescenta autenticação; ela não substitui o catálogo criado anteriormente.
 
 3. Reiniciar a API no Terminal B:
 ```bash
@@ -181,6 +173,7 @@ import {
   IonCard, 
   IonCardHeader, 
   IonCardTitle, 
+  IonCardSubtitle,
   IonCardContent, 
   IonItem, 
   IonInput, 
@@ -205,6 +198,7 @@ import { AuthService } from '../../services/auth.service';
     IonCard, 
     IonCardHeader, 
     IonCardTitle, 
+    IonCardSubtitle,
     IonCardContent, 
     IonItem, 
     IonInput, 
@@ -224,6 +218,11 @@ export class LoginPage implements OnInit {
   ) { }
 
   ngOnInit() { }
+
+  // Navegação para a tela de cadastro
+  irParaCadastro() {
+    this.router.navigate(['/cadastro']);
+  }
 
   // Dispara a tentativa de login na API
   executarLogin() {
@@ -254,7 +253,56 @@ export class LoginPage implements OnInit {
 }
 ```
 
-2. **Validar no navegador:** Acesse `http://localhost:8100/login`.
+2. **Editar o arquivo HTML (`src/app/pages/login/login.page.html`) vinculando os campos com `[(ngModel)]` e conectando o botão ao `executarLogin()`:**
+
+```html
+<!-- Cabeçalho Superior Fixo da Tela -->
+<ion-header [translucent]="true">
+  <ion-toolbar color="primary">
+    <ion-title>Portal Mobile</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<!-- Conteúdo Principal Rolável -->
+<ion-content class="ion-padding custom-background">
+  <div class="login-container">
+    
+    <!-- Cartão de formulário principal -->
+    <ion-card class="login-card">
+      <ion-card-header>
+        <ion-card-title>Acesso ao Sistema</ion-card-title>
+        <ion-card-subtitle>Informe suas credenciais para continuar</ion-card-subtitle>
+      </ion-card-header>
+
+      <ion-card-content>
+        <!-- Campo E-mail vinculado ao [(ngModel)]="email" -->
+        <ion-item lines="full" class="custom-item">
+          <ion-input label="E-mail" labelPlacement="stacked" type="email" [(ngModel)]="email" placeholder="seu.email@exemplo.com"></ion-input>
+        </ion-item>
+
+        <!-- Campo Senha vinculado ao [(ngModel)]="senha" -->
+        <ion-item lines="full" class="custom-item">
+          <ion-input label="Senha" labelPlacement="stacked" type="password" [(ngModel)]="senha" placeholder="Digite sua senha"></ion-input>
+        </ion-item>
+
+        <!-- Botão com envio e feedback de carregamento -->
+        <ion-button expand="block" color="primary" class="ion-margin-top" (click)="executarLogin()" [disabled]="carregando">
+          <ion-spinner *ngIf="carregando" name="crescent"></ion-spinner>
+          <span *ngIf="!carregando">Entrar</span>
+        </ion-button>
+
+        <!-- Botão de cadastro -->
+        <ion-button expand="block" fill="outline" color="secondary" class="ion-margin-top" (click)="irParaCadastro()">
+          Criar Conta
+        </ion-button>
+      </ion-card-content>
+    </ion-card>
+
+  </div>
+</ion-content>
+```
+
+3. **Validar no navegador:** Acesse `http://localhost:8100/login`.
 
 ---
 
