@@ -40,10 +40,14 @@ npm run start
 ```typescript
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
+// Observable representa um resultado que chegará no futuro.
+// from() converte uma Promise em Observable para podermos usar operadores RxJS.
 import { Observable, from } from 'rxjs';
+// tap executa efeitos paralelos; catchError trata falhas; map transforma valores emitidos.
 import { tap, catchError, map } from 'rxjs/operators';
 import { StorageService } from './storage.service';
 
+// Este contrato define a estrutura esperada para cada produto vindo da API e do cache.
 export interface Produto {
   id: number;
   nome: string;
@@ -55,37 +59,47 @@ export interface Produto {
   providedIn: 'root'
 })
 export class ProdutoService {
+  // Endereço da API que fornece a lista atualizada de produtos.
   private apiUrl = 'http://localhost:3000/produtos';
+  // Chave fixa usada para salvar e recuperar a mesma lista no armazenamento local.
   private CACHE_KEY = 'produtos_cache';
 
   constructor(
+    // HttpClient realiza as requisições HTTP para o backend.
     private http: HttpClient,
+    // StorageService grava e lê dados persistentes no dispositivo.
     private storage: StorageService
   ) { }
 
+  // Requisição comum, sem fallback de cache.
   listarProdutos(): Observable<Produto[]> {
     return this.http.get<Produto[]>(this.apiUrl);
   }
 
+  // Partial<Produto> permite enviar apenas os campos necessários ao cadastrar.
   criarProduto(produto: Partial<Produto>): Observable<Produto> {
     return this.http.post<Produto>(this.apiUrl, produto);
   }
 
+  // O id é acrescentado ao final da URL para excluir um produto específico.
   excluirProduto(id: number): Observable<any> {
     return this.http.delete(`${this.apiUrl}/${id}`);
   }
 
-  // Busca dados na API. Se obtiver sucesso, salva no cache local.
-  // Caso ocorra falha de rede (catchError), restaura os dados do storage local!
+  // pipe() monta uma sequência de etapas para tratar a resposta da API.
   listarComCache(): Observable<Produto[]> {
     return this.http.get<Produto[]>(this.apiUrl).pipe(
       tap((produtos) => {
-        // Salva uma cópia dos produtos atualizados no disco do dispositivo
+        // Salva uma cópia atualizada, sem modificar a lista que seguirá para a tela.
+        // void deixa explícito que não aguardamos a Promise de gravação nesta etapa.
         void this.storage.salvar(this.CACHE_KEY, produtos);
       }),
       catchError(() => {
+        // Se a requisição HTTP falhar, não encerramos o fluxo com erro.
         console.warn('Rede indisponível! Recuperando dados do cache local...');
+        // obter() retorna Promise; from() a transforma em Observable compatível com RxJS.
         return from(this.storage.obter<Produto[]>(this.CACHE_KEY)).pipe(
+          // Caso seja o primeiro acesso offline e não exista cache, exibe uma lista vazia.
           map((dadosLocais) => dadosLocais || [])
         );
       })
@@ -96,6 +110,10 @@ export class ProdutoService {
 > 📌 **Entendendo os Operadores RxJS (`tap` e `catchError`):**
 > - **`tap`**: Executa um efeito colateral sem alterar a resposta do Observable. Aqui usamos para salvar a cópia local.
 > - **`catchError`**: Intercepta falhas HTTP (ex: servidor offline). Em vez de travar a tela, ele intercepta a exceção e retorna a lista de cache previamente salva.
+> - **`from`**: Converte a `Promise` retornada pelo `StorageService` em um `Observable`, permitindo continuar usando `pipe`.
+> - **`map`**: Ajusta o dado emitido. Neste caso, converte `null` (cache inexistente) em `[]` (lista vazia).
+
+> 📌 **Fluxo do cache:** com internet, a API responde e `tap` atualiza a cópia local. Sem internet, `catchError` substitui a resposta da API pelo conteúdo salvo na chave `produtos_cache`. Assim, a página sempre recebe uma lista de `Produto`, mesmo no primeiro acesso offline.
 
 3. **Validar:** Salve o arquivo e verifique que o código compila sem erros no terminal.
 
@@ -108,19 +126,23 @@ export class ProdutoService {
 ```typescript
 // Adicionar dentro da classe StorageService:
 
-// Adiciona uma ação pendente à fila local offline
+// Cada pendência pode representar uma ação que será enviada ao servidor depois.
+// Exemplo: { tipo: 'criar-produto', dados: novoProduto }.
 async adicionarPendencia(item: any): Promise<void> {
+  // Se a fila ainda não existir, começa com um array vazio.
   const pendencias = (await this.obter<any[]>('pendencias_offline')) || [];
+  // push adiciona a nova ação ao final, preservando as pendências já armazenadas.
   pendencias.push(item);
+  // Salva o array inteiro novamente porque o storage grava um valor por chave.
   await this.salvar('pendencias_offline', pendencias);
 }
 
-// Retorna todas as pendências aguardando sincronização
+// Retorna uma lista pronta para percorrer, mesmo que não haja itens pendentes.
 async obterPendencias(): Promise<any[]> {
   return (await this.obter<any[]>('pendencias_offline')) || [];
 }
 
-// Limpa a fila de pendências após sincronizar com o servidor
+// Execute somente depois de confirmar que todas as ações foram sincronizadas.
 async limparPendencias(): Promise<void> {
   await this.remover('pendencias_offline');
 }
@@ -174,26 +196,33 @@ import { ProdutoService, Produto } from '../../services/produto.service';
   ]
 })
 export class ProdutosPage implements OnInit {
+  // A lista começa vazia e é preenchida pela API ou pelo cache local.
   produtos: Produto[] = [];
 
   constructor(
+    // Serviço que busca produtos e aplica a estratégia de cache.
     private produtoService: ProdutoService,
+    // Controladores do Ionic usados para mostrar mensagens e confirmações.
     private toastCtrl: ToastController,
     private alertCtrl: AlertController
   ) { }
 
+  // ngOnInit é chamado quando a página é criada; aqui iniciamos a primeira carga.
   ngOnInit() {
     this.carregarProdutos();
   }
 
-  // Carrega a lista com resiliência de cache e encerra o refresher se houver
+  // event é opcional: ele existe quando o usuário puxa a tela para atualizar.
   carregarProdutos(event?: any) {
     this.produtoService.listarComCache().subscribe({
       next: (dados) => {
+        // "dados" pode vir da API ou do cache, mas sempre tem o formato Produto[].
         this.produtos = dados;
+        // complete() encerra a animação do refresher, quando ela foi acionada.
         if (event) event.target.complete();
       },
       error: async () => {
+        // Este caso cobre uma falha que não conseguiu ser resolvida pelo cache.
         if (event) event.target.complete();
         const toast = await this.toastCtrl.create({
           message: 'Modo offline: exibindo produtos em cache.',
@@ -205,7 +234,7 @@ export class ProdutosPage implements OnInit {
     });
   }
 
-  // Modal de confirmação de exclusão
+  // Exibe uma confirmação antes de executar uma ação que não pode ser desfeita.
   async confirmarExclusao(id: number) {
     const alert = await this.alertCtrl.create({
       header: 'Confirmar Exclusão',
@@ -215,6 +244,7 @@ export class ProdutosPage implements OnInit {
         {
           text: 'Excluir',
           role: 'destructive',
+          // handler só é chamado se o usuário confirmar a exclusão.
           handler: () => this.remover(id)
         }
       ]
@@ -222,7 +252,7 @@ export class ProdutosPage implements OnInit {
     await alert.present();
   }
 
-  // Exclusão de produto
+  // Após excluir no servidor, recarregamos a lista para refletir a alteração na tela.
   remover(id: number) {
     this.produtoService.excluirProduto(id).subscribe({
       next: async () => {

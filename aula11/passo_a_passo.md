@@ -65,40 +65,52 @@ ng g s services/storage
 
 ```typescript
 import { Injectable } from '@angular/core';
+// API do Capacitor que acessa o armazenamento local do dispositivo.
 import { Preferences } from '@capacitor/preferences';
 
 @Injectable({
+  // Permite injetar este serviço em qualquer página sem cadastrá-lo manualmente.
   providedIn: 'root'
 })
 export class StorageService {
 
   constructor() { }
 
-  // Salva qualquer dado serializado em JSON sob uma chave string
+  // A chave identifica o valor salvo; use sempre o mesmo texto para recuperá-lo depois.
+  // "any" permite salvar booleanos, textos, números, objetos e arrays neste exemplo.
   async salvar(chave: string, valor: any): Promise<void> {
     await Preferences.set({
       key: chave,
+      // Preferences só armazena texto; JSON transforma outros tipos em texto.
       value: JSON.stringify(valor)
     });
   }
 
-  // Busca e converte o dado JSON salvo de volta para o tipo T especificado
+  // <T> é um tipo genérico: quem chama o método informa o tipo esperado na leitura.
+  // Exemplo: obter<boolean>('modoEscuro') retorna Promise<boolean | null>.
   async obter<T>(chave: string): Promise<T | null> {
+    // Desestruturação: pega apenas a propriedade "value" retornada pelo plugin.
     const { value } = await Preferences.get({ key: chave });
-    if (!value) return null;
+    // null significa que não existe nenhum valor salvo para esta chave.
+    if (value === null) return null;
+
     try {
+      // JSON.parse desfaz o JSON criado por JSON.stringify ao salvar o dado.
+      // "as T" informa ao TypeScript qual tipo esperamos receber de volta.
       return JSON.parse(value) as T;
-    } catch {
+    } catch (erro) {
+      // Um valor inválido no storage não pode ser convertido de JSON para o tipo esperado.
+      console.error(`Não foi possível ler a preferência "${chave}".`, erro);
       return null;
     }
   }
 
-  // Remove um item específico pela chave
+  // Exclui apenas o dado associado à chave recebida.
   async remover(chave: string): Promise<void> {
     await Preferences.remove({ key: chave });
   }
 
-  // Limpa todas as preferências salvas no dispositivo
+  // Atenção: remove todas as preferências deste aplicativo, sem pedir confirmação.
   async limparTudo(): Promise<void> {
     await Preferences.clear();
   }
@@ -106,6 +118,9 @@ export class StorageService {
 ```
 > 📌 **Entendendo a assincronia (`async/await`):**  
 > As operações no dispositivo móvel leem e escrevem no disco. Como o disco é mais lento que a memória RAM, todas as funções retornam `Promises` que devem ser aguardadas com a palavra-chave `await`.
+
+> 📌 **Entendendo o `T` em `obter<T>()`:**  
+> `T` é um **tipo genérico** do TypeScript. Ele não cria nem converte dados sozinho; apenas informa ao editor qual tipo esperamos após o `JSON.parse()`. Por isso, ao ler uma chave que guarda `true` ou `false`, escrevemos `obter<boolean>('modoEscuro')`; ao ler um texto, escrevemos `obter<string>('emailLembrado')`. O retorno também pode ser `null`, pois a chave pode ainda não ter sido salva.
 
 3. **Validar:** Salve o arquivo e confirme que o código compila sem erros.
 
@@ -169,21 +184,27 @@ import { StorageService } from '../../services/storage.service';
   ]
 })
 export class ConfiguracoesPage implements OnInit {
+  // Variáveis ligadas aos campos HTML por meio do [(ngModel)].
   modoEscuro: boolean = false;
   emailSalvo: string = '';
 
+  // O Angular entrega automaticamente a instância do StorageService no construtor.
   constructor(private storageService: StorageService) { }
 
-  // Carrega as preferências salvas no disco logo na inicialização da página
+  // ngOnInit é executado quando a página é criada.
+  // await garante que os valores sejam lidos antes de atualizar os campos da tela.
   async ngOnInit() {
+    // Se a chave ainda não existir, obter() devolve null e usamos false como padrão.
     this.modoEscuro = (await this.storageService.obter<boolean>('modoEscuro')) || false;
+    // A mesma ideia: caso não exista e-mail salvo, o campo começa vazio.
     this.emailSalvo = (await this.storageService.obter<string>('emailLembrado')) || '';
   }
 
-  // Persiste os novos valores informados pelo usuário
+  // Salva cada preferência usando uma chave fixa, que será usada novamente na leitura.
   async salvarConfiguracoes() {
     await this.storageService.salvar('modoEscuro', this.modoEscuro);
     await this.storageService.salvar('emailLembrado', this.emailSalvo);
+    // Por enquanto, a confirmação aparece no Console do navegador (F12).
     console.log('Preferências salvas com sucesso no dispositivo!');
   }
 }
@@ -200,17 +221,19 @@ export class ConfiguracoesPage implements OnInit {
 
 <ion-content class="ion-padding">
   <ion-list>
-    <!-- Toggle Modo Escuro (Sintaxe Ionic 7+) -->
+    <!-- [(ngModel)] faz a ligação em dois sentidos:
+         o valor de modoEscuro atualiza o toggle e a interação atualiza a variável. -->
     <ion-item lines="full">
       <ion-toggle [(ngModel)]="modoEscuro">Modo Escuro (Noturno)</ion-toggle>
     </ion-item>
 
-    <!-- Campo Lembrar E-mail (Sintaxe Ionic 7+) -->
+    <!-- O mesmo [(ngModel)] mantém o conteúdo do campo sincronizado com emailSalvo. -->
     <ion-item lines="full">
       <ion-input label="Lembrar E-mail" labelPlacement="stacked" type="email" [(ngModel)]="emailSalvo" placeholder="Digite seu e-mail"></ion-input>
     </ion-item>
   </ion-list>
 
+  <!-- (click) chama o método TypeScript somente quando o usuário pressiona o botão. -->
   <ion-button expand="block" color="primary" class="ion-margin-top" (click)="salvarConfiguracoes()">
     Salvar Preferências
   </ion-button>
