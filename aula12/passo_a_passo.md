@@ -27,7 +27,53 @@
 
 ## ⏱️ Roteiro Completo de Atividades (4 Horas)
 
-### Bloco 1 - Implementação do Cache Local de Produtos no Serviço
+### Bloco 1 - Garantia do Endpoint de Exclusão na API
+
+> [!IMPORTANT]
+> O botão **Excluir** do aplicativo chama `DELETE /produtos/:id`. Antes de continuar, confirme que essa rota existe em `src/app.js` da API. Ela foi criada na Aula 10, mas deve permanecer no arquivo nas aulas seguintes.
+
+1. No **Terminal B (API)**, abra `src/app.js`. Se a rota abaixo não existir, adicione-a depois das rotas `GET /produtos` e `POST /produtos`, dentro do mesmo arquivo:
+
+```javascript
+// DELETE /produtos/:id recebe o id da URL e remove somente o produto correspondente.
+app.delete('/produtos/:id', (req, res) => {
+  // req.params contém os valores dinâmicos da rota; convertemos o texto para número.
+  const id = Number(req.params.id);
+
+  // Verificamos a existência antes de alterar a lista para retornar um erro claro.
+  const produtoExiste = produtos.some((produto) => produto.id === id);
+  if (!produtoExiste) {
+    return res.status(404).json({ erro: 'Produto não encontrado!' });
+  }
+
+  // filter cria uma nova lista sem o produto cujo id foi recebido.
+  produtos = produtos.filter((produto) => produto.id !== id);
+  return res.status(200).json({ mensagem: 'Produto removido com sucesso!' });
+});
+```
+
+2. Reinicie a API no Terminal B:
+
+```bash
+cd projetos/mobile_api
+npm start
+```
+
+3. **Validar a rota diretamente antes de testá-la na interface:**
+   - **No Git Bash:**
+     ```bash
+     curl -X DELETE http://localhost:3000/produtos/1
+     ```
+   - **No PowerShell:**
+     ```powershell
+     Invoke-RestMethod -Uri http://localhost:3000/produtos/1 -Method DELETE
+     ```
+
+> 📌 **Atenção:** a API das aulas usa uma lista em memória. Ao reiniciar `npm start`, os produtos de exemplo voltam a existir. Portanto, após este teste direto, reinicie a API ou use outro produto ao testar o botão no aplicativo.
+
+---
+
+### Bloco 2 - Implementação do Cache Local de Produtos no Serviço
 
 1. No **Terminal A (Mobile)**, garantir a execução do servidor web:
 ```bash
@@ -119,7 +165,7 @@ export class ProdutoService {
 
 ---
 
-### Bloco 2 - Criação do Gerenciador de Pendências Offline
+### Bloco 3 - Criação do Gerenciador de Pendências Offline
 
 1. **Editar o serviço de armazenamento (`src/app/services/storage.service.ts`) adicionando o controle de fila de pendências:**
 
@@ -152,13 +198,13 @@ async limparPendencias(): Promise<void> {
 
 ---
 
-### Bloco 3 - Atualização da Interface para Indicar Modo Cache/Offline
+### Bloco 4 - Atualização da Interface para Indicar Modo Cache/Offline
 
 1. **Editar a página de produtos (`src/app/pages/produtos/produtos.page.ts`) integrando o método `listarComCache()` e mantendo suporte ao Refresher e Exclusão:**
 
 ```typescript
 import { Component, OnInit } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, CurrencyPipe } from '@angular/common';
 import { 
   IonContent, 
   IonHeader, 
@@ -182,7 +228,9 @@ import { ProdutoService, Produto } from '../../services/produto.service';
   styleUrls: ['./produtos.page.scss'],
   standalone: true,
   imports: [
-    CommonModule, 
+    CommonModule,
+    // Necessário para o pipe currency usado no HTML para formatar o preço.
+    CurrencyPipe,
     IonContent, 
     IonHeader, 
     IonTitle, 
@@ -272,6 +320,16 @@ export class ProdutosPage implements OnInit {
         });
         toast.present();
         this.carregarProdutos();
+      },
+      error: async (erro) => {
+        // Registra o detalhe técnico para depuração e informa a falha ao usuário.
+        console.error('Não foi possível excluir o produto:', erro);
+        const toast = await this.toastCtrl.create({
+          message: 'Não foi possível excluir o produto. Tente novamente.',
+          duration: 3000,
+          color: 'danger'
+        });
+        toast.present();
       }
     });
   }
@@ -331,13 +389,17 @@ export class ProdutosPage implements OnInit {
 
 ---
 
-### Bloco 4 - Testes de Desconexão e Sincronização de Cache
+### Bloco 5 - Testes de Desconexão e Sincronização de Cache
 
 1. **Testar em modo Online:** Acesse `http://localhost:8100/produtos` com a API rodando no Terminal B.
-2. **Interromper a API:** No **Terminal B**, pressione `Ctrl + C` para desligar o servidor Node/Express.
-3. **Testar a resiliência Offline:** Atualize a página do navegador (`F5`) ou feche o navegador e reabra o aplicativo.
-4. **Verificar o resultado:** A lista de produtos continuará sendo exibida normalmente na tela, lendo os dados salvos no cache do dispositivo!
-5. **Religar a API:** Execute `npm start` no Terminal B. Requisões subsequentes atualizarão a cópia local silenciosamente.
+2. **Verificar o carregamento:** Confirme que o spinner aparece até a lista ser exibida e desaparece quando os produtos chegam.
+3. **Testar o refresher:** Puxe a lista para baixo; a animação deve encerrar depois de atualizar os produtos.
+4. **Testar a exclusão:** Toque em **Excluir**, confirme no alerta e valide o Toast verde e a atualização da lista.
+5. **Interromper a API:** No **Terminal B**, pressione `Ctrl + C` para desligar o servidor Node/Express.
+6. **Testar a resiliência Offline:** Atualize a página do navegador (`F5`) ou feche o navegador e reabra o aplicativo.
+7. **Verificar o resultado:** A lista de produtos continuará sendo exibida normalmente na tela, lendo os dados salvos no cache do dispositivo. Se não houver cache, a tela deve mostrar **Nenhum produto encontrado**.
+8. **Testar a falha de exclusão:** Com a API desligada, tente excluir um item do cache; o Toast vermelho deve informar que a exclusão não foi concluída.
+9. **Religar a API:** Execute `npm start` no Terminal B. Requisições subsequentes atualizarão a cópia local silenciosamente.
 
 ---
 

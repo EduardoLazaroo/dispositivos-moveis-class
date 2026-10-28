@@ -113,8 +113,8 @@ Principais Vantagens:
 
 3. Validar a criacao do arquivo exibindo seu conteudo no terminal:
 
-```bash
-- Get-Content projetos/anotacoes_aula01.txt
+```powershell
+Get-Content projetos/anotacoes_aula01.txt
 ```
 
 ## 🔄 Fluxo Resumido de Execução Diária
@@ -128,8 +128,8 @@ cd projetos
 
 3. Verificar a existencia do arquivo de anotacoes:
 
-```javascript
-- Get-Content anotacoes_aula01.txt
+```powershell
+Get-Content anotacoes_aula01.txt
 ```
 
 ## ✅ Saída Esperada ao Final da Aula
