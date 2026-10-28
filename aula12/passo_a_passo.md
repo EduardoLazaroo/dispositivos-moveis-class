@@ -169,6 +169,7 @@ import {
   IonLabel, 
   IonBadge, 
   IonButton, 
+  IonSpinner,
   IonRefresher, 
   IonRefresherContent 
 } from '@ionic/angular/standalone';
@@ -191,6 +192,7 @@ import { ProdutoService, Produto } from '../../services/produto.service';
     IonLabel, 
     IonBadge, 
     IonButton, 
+    IonSpinner,
     IonRefresher, 
     IonRefresherContent
   ]
@@ -198,6 +200,8 @@ import { ProdutoService, Produto } from '../../services/produto.service';
 export class ProdutosPage implements OnInit {
   // A lista começa vazia e é preenchida pela API ou pelo cache local.
   produtos: Produto[] = [];
+  // Mantém o spinner visível durante a primeira busca ou uma atualização manual.
+  carregando: boolean = true;
 
   constructor(
     // Serviço que busca produtos e aplica a estratégia de cache.
@@ -214,18 +218,23 @@ export class ProdutosPage implements OnInit {
 
   // event é opcional: ele existe quando o usuário puxa a tela para atualizar.
   carregarProdutos(event?: any) {
+    // Ativa o spinner antes de iniciar uma nova busca.
+    this.carregando = true;
     this.produtoService.listarComCache().subscribe({
       next: (dados) => {
         // "dados" pode vir da API ou do cache, mas sempre tem o formato Produto[].
         this.produtos = dados;
+        // A resposta chegou da API ou do cache; não é mais necessário exibir o spinner.
+        this.carregando = false;
         // complete() encerra a animação do refresher, quando ela foi acionada.
         if (event) event.target.complete();
       },
       error: async () => {
         // Este caso cobre uma falha que não conseguiu ser resolvida pelo cache.
+        this.carregando = false;
         if (event) event.target.complete();
         const toast = await this.toastCtrl.create({
-          message: 'Modo offline: exibindo produtos em cache.',
+          message: 'Não foi possível carregar os produtos salvos.',
           duration: 3000,
           color: 'warning'
         });
@@ -269,7 +278,56 @@ export class ProdutosPage implements OnInit {
 }
 ```
 
-2. **Validar no navegador:** Acesse `http://localhost:8100/produtos` e confirme que a lista é renderizada normalmente e salvou a cópia local no storage.
+2. **Editar o HTML da página (`src/app/pages/produtos/produtos.page.html`):**
+
+```html
+<ion-header [translucent]="true">
+  <ion-toolbar color="primary">
+    <ion-title>Produtos</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <!-- Ao puxar a lista para baixo, o Ionic envia o evento para carregarProdutos(). -->
+  <ion-refresher slot="fixed" (ionRefresh)="carregarProdutos($event)">
+    <ion-refresher-content></ion-refresher-content>
+  </ion-refresher>
+
+  <!-- *ngIf cria o spinner apenas enquanto a lista está sendo carregada. -->
+  <div *ngIf="carregando" class="ion-text-center ion-padding">
+    <ion-spinner name="crescent"></ion-spinner>
+    <p>Carregando produtos...</p>
+  </div>
+
+  <!-- A lista só aparece depois da busca, evitando exibir uma lista vazia durante o carregamento. -->
+  <ion-list *ngIf="!carregando && produtos.length > 0">
+    <!-- *ngFor repete este item uma vez para cada produto recebido da API ou do cache. -->
+    <ion-item *ngFor="let produto of produtos">
+      <ion-label>
+        <h2>{{ produto.nome }}</h2>
+        <p>Categoria: {{ produto.categoria }}</p>
+      </ion-label>
+
+      <!-- O pipe currency formata o preço para exibição ao usuário. -->
+      <ion-badge slot="end" color="success">
+        {{ produto.preco | currency:'BRL':'symbol':'1.2-2' }}
+      </ion-badge>
+
+      <!-- Ao tocar, o id do produto é enviado para a confirmação de exclusão. -->
+      <ion-button slot="end" fill="clear" color="danger" (click)="confirmarExclusao(produto.id)">
+        Excluir
+      </ion-button>
+    </ion-item>
+  </ion-list>
+
+  <!-- Esta mensagem aparece apenas quando a busca terminou sem retornar produtos. -->
+  <p *ngIf="!carregando && produtos.length === 0" class="ion-text-center ion-padding">
+    Nenhum produto encontrado.
+  </p>
+</ion-content>
+```
+
+3. **Validar no navegador:** Acesse `http://localhost:8100/produtos`, confirme o spinner durante o carregamento e verifique se a lista renderiza e salva a cópia local no storage.
 
 ---
 
